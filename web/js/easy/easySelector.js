@@ -1,7 +1,7 @@
 // 1.0.3
-import { app } from "/scripts/app.js";
-import { api } from "/scripts/api.js";
-import { $el } from "/scripts/ui.js";
+import { app } from "/iframe/comfy/scripts/app.js";
+import { api } from "/iframe/comfy/scripts/api.js";
+import { $el } from "/iframe/comfy/scripts/ui.js";
 
 // 添加样式
 const styleElement = document.createElement("style");

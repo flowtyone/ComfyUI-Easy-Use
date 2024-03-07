@@ -1,6 +1,6 @@
-import { app } from "/scripts/app.js";
-import { api } from "/scripts/api.js";
-import { $el } from "/scripts/ui.js";
+import { app } from "/iframe/comfy/scripts/app.js";
+import { api } from "/iframe/comfy/scripts/api.js";
+import { $el } from "/iframe/comfy/scripts/ui.js";
 
 const locale = localStorage['AGL.Locale'] || localStorage['Comfy.Settings.AGL.Locale'] || 'en-US'
 

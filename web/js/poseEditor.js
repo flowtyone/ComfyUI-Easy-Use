@@ -1,4 +1,5 @@
 import { app } from "../../../scripts/app.js";
+import {api} from "../../../scripts/api.js"
 import { fabric } from "../lib/fabric.js";
 
 fabric.Object.prototype.transparentCorners = false;
@@ -360,7 +361,7 @@ class OpenPose {
 
     const uploadFile = async (blobFile) => {
       try {
-        const resp = await fetch("/upload/image", {
+        const resp = await api.fetchApi("/upload/image", {
           method: "POST",
           body: blobFile,
         });

@@ -1,7 +1,7 @@
 // 1.0.2
-import { app } from "/scripts/app.js";
-import { GroupNodeConfig } from "/extensions/core/groupNode.js";
-import { api } from "/scripts/api.js";
+import { app } from "/iframe/comfy/scripts/app.js";
+import { GroupNodeConfig } from "../../../core/groupNode.js";
+import { api } from "/iframe/comfy/scripts/api.js";
 
 const nodeTemplateShortcutId = "Comfy.EasyUse.NodeTemplateShortcut"
 const processBarId = "Comfy.EasyUse.queueProcessBar"

@@ -1,4 +1,4 @@
-import {app} from "/scripts/app.js";
+import {app} from "/iframe/comfy/scripts/app.js";
 
 const loaders = ['easy fullLoader', 'easy a1111Loader', 'easy comfyLoader']
 const preSampling = ['easy preSampling', 'easy preSamplingAdvanced', 'easy preSamplingDynamicCFG', 'easy preSamplingLayerDiffusion', 'easy fullkSampler']
@@ -488,9 +488,9 @@ app.registerExtension({
             })
         })
         // Swap提示词
-        if (positive_prompt.includes(nodeData.name)) {
-            addMenu("↪️ Swap EasyPrompt", 'positive_prompt', positive_prompt, nodeType)
-        }
+        // if (positive_prompt.includes(nodeData.name)) {
+        //     addMenu("↪️ Swap EasyPrompt", 'positive_prompt', positive_prompt, nodeType)
+        // }
         // Swap加载器
         if (loaders.includes(nodeData.name)) {
             addMenu("↪️ Swap EasyLoader", 'loaders', loaders, nodeType)

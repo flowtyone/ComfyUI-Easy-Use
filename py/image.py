@@ -470,12 +470,12 @@ class JoinImageBatch:
 class poseEditor:
   @classmethod
   def INPUT_TYPES(self):
-    temp_dir = folder_paths.get_temp_directory()
+    temp_dir = folder_paths.get_input_directory()
 
     if not os.path.isdir(temp_dir):
       os.makedirs(temp_dir)
 
-    temp_dir = folder_paths.get_temp_directory()
+    temp_dir = folder_paths.get_input_directory()
 
     return {"required":
               {"image": (sorted(os.listdir(temp_dir)),)},
@@ -487,7 +487,7 @@ class poseEditor:
   CATEGORY = "EasyUse/Image"
 
   def output_pose(self, image):
-    image_path = os.path.join(folder_paths.get_temp_directory(), image)
+    image_path = os.path.join(folder_paths.get_input_directory(), image)
     # print(f"Create: {image_path}")
 
     i = Image.open(image_path)
@@ -500,7 +500,7 @@ class poseEditor:
   @classmethod
   def IS_CHANGED(self, image):
     image_path = os.path.join(
-      folder_paths.get_temp_directory(), image)
+      folder_paths.get_input_directory(), image)
     # print(f'Change: {image_path}')
 
     m = hashlib.sha256()

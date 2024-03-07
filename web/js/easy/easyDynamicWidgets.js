@@ -1,6 +1,6 @@
-import { app } from "/scripts/app.js";
-import { api } from "/scripts/api.js";
-import { ComfyWidgets } from "/scripts/widgets.js";
+import { app } from "/iframe/comfy/scripts/app.js";
+import { api } from "/iframe/comfy/scripts/api.js";
+import { ComfyWidgets } from "/iframe/comfy/scripts/widgets.js";
 
 let origProps = {};
 
@@ -745,14 +745,14 @@ app.registerExtension({
 				}
 			}
 
-			const onExecuted = nodeType.prototype.onExecuted;
-			nodeType.prototype.onExecuted = function (message) {
-				onExecuted?.apply(this, arguments);
-				const positive = addText(message.positive)
-				const negative = addText(message.negative)
-				populate.call(this, positive, "positive");
-				populate.call(this, negative, "negative");
-			};
+			// const onExecuted = nodeType.prototype.onExecuted;
+			// nodeType.prototype.onExecuted = function (message) {
+			// 	onExecuted?.apply(this, arguments);
+			// 	const positive = addText(message.positive)
+			// 	const negative = addText(message.negative)
+			// 	populate.call(this, positive, "positive");
+			// 	populate.call(this, negative, "negative");
+			// };
 		}
 
 		if (["easy seed", "easy latentNoisy", "easy wildcards", "easy preSampling", "easy preSamplingAdvanced", "easy preSamplingSdTurbo", "easy preSamplingCascade", "easy preSamplingDynamicCFG", "easy preSamplingLayerDiffusion", "easy fullkSampler", "easy fullCascadeKSampler"].includes(nodeData.name)) {
@@ -766,6 +766,19 @@ app.registerExtension({
 					values,
 					serialize: false
 				})
+				seed_widget.afterQueued = function (){
+					const linked = this.linkedWidgets[0];
+
+					if(linked) {
+						if (linked.value === "randomize") {
+							this.value = Math.floor(Math.random() * 1125899906842624)
+						} else if (linked.value === "increment") {
+							this.value = this.value + 1;
+						} else if (linked.value === "decrement") {
+							this.value = this.value - 1;
+						}
+					}
+				}
 				seed_widget.linkedWidgets = [seed_control]
 				if(nodeData.name == 'easy seed'){
 					this.addWidget("button", "🎲 Manual Random Seed", null, _=>{

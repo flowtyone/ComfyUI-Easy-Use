@@ -943,8 +943,8 @@ class cascadeLoader:
         resolution_strings = [f"{width} x {height}" for width, height in BASE_RESOLUTIONS]
 
         return {"required": {
-            "stage_c": (folder_paths.get_filename_list("unet") + folder_paths.get_filename_list("checkpoints"),),
-            "stage_b": (folder_paths.get_filename_list("unet") + folder_paths.get_filename_list("checkpoints"),),
+            "stage_c": (folder_paths.get_filename_list("checkpoints"),),
+            "stage_b": (folder_paths.get_filename_list("checkpoints"),),
             "stage_a": (["Baked VAE"]+folder_paths.get_filename_list("vae"),),
             "clip_name": (["None"] + folder_paths.get_filename_list("clip"),),
 
@@ -1120,7 +1120,7 @@ class zero123Loader:
             return [file for file in filenames if file != "put_models_here.txt" and "zero123" in file]
 
         return {"required": {
-            "ckpt_name": (get_file_list(folder_paths.get_filename_list("checkpoints")),),
+            "ckpt_name": (folder_paths.get_filename_list("checkpoints"),),
             "vae_name": (["Baked VAE"] + folder_paths.get_filename_list("vae"),),
 
             "init_image": ("IMAGE",),
@@ -1207,7 +1207,7 @@ class svdLoader:
             return [file for file in filenames if file != "put_models_here.txt" and "svd" in file.lower()]
 
         return {"required": {
-                "ckpt_name": (get_file_list(folder_paths.get_filename_list("checkpoints")),),
+                "ckpt_name": (folder_paths.get_filename_list("checkpoints"),),
                 "vae_name": (["Baked VAE"] + folder_paths.get_filename_list("vae"),),
                 "clip_name": (["None"] + folder_paths.get_filename_list("clip"),),
 
@@ -1420,7 +1420,7 @@ class controlnetSimple:
             "required": {
                 "pipe": ("PIPE_LINE",),
                 "image": ("IMAGE",),
-                "control_net_name": (get_file_list(folder_paths.get_filename_list("controlnet")),),
+                "control_net_name": (folder_paths.get_filename_list("controlnet"),),
             },
             "optional": {
                 "control_net": ("CONTROL_NET",),
@@ -1469,7 +1469,7 @@ class controlnetAdvanced:
             "required": {
                 "pipe": ("PIPE_LINE",),
                 "image": ("IMAGE",),
-                "control_net_name": (get_file_list(folder_paths.get_filename_list("controlnet")),),
+                "control_net_name": (folder_paths.get_filename_list("controlnet"),),
             },
             "optional": {
                 "control_net": ("CONTROL_NET",),
@@ -1523,7 +1523,7 @@ class LLLiteLoader:
         return {
             "required": {
                 "model": ("MODEL",),
-                "model_name": (get_file_list(folder_paths.get_filename_list("controlnet")),),
+                "model_name": (folder_paths.get_filename_list("controlnet"),),
                 "cond_image": ("IMAGE",),
                 "strength": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 10.0, "step": 0.01}),
                 "steps": ("INT", {"default": 0, "min": 0, "max": 200, "step": 1}),
@@ -3769,10 +3769,10 @@ class detailerFix:
 class ultralyticsDetectorForDetailerFix:
     @classmethod
     def INPUT_TYPES(s):
-        bboxs = ["bbox/" + x for x in folder_paths.get_filename_list("ultralytics_bbox")]
-        segms = ["segm/" + x for x in folder_paths.get_filename_list("ultralytics_segm")]
+        # bboxs = ["bbox/" + x for x in folder_paths.get_filename_list("ultralytics_bbox")]
+        # segms = ["segm/" + x for x in folder_paths.get_filename_list("ultralytics_segm")]
         return {"required":
-                    {"model_name": (bboxs + segms,),
+                    {"model_name": (folder_paths.get_filename_list("ultralytics_bbox"),),
                     "bbox_threshold": ("FLOAT", {"default": 0.5, "min": 0.0, "max": 1.0, "step": 0.01}),
                     "bbox_dilation": ("INT", {"default": 10, "min": -512, "max": 512, "step": 1}),
                     "bbox_crop_factor": ("FLOAT", {"default": 3.0, "min": 1.0, "max": 10, "step": 0.1}),

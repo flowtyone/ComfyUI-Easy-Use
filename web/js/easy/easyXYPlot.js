@@ -1,4 +1,4 @@
-import { app } from "/scripts/app.js";
+import { app } from "/iframe/comfy/scripts/app.js";
 import { easy_CreateDropdown, easy_RemoveDropdown } from "./easy.js";
 
 function generateNumList(dictionary) {
@@ -177,7 +177,7 @@ function dropdownCreator(node) {
 app.registerExtension({
 	name: "comfy.easy.xyPlot",
 	async beforeRegisterNodeDef(nodeType, nodeData, app) {
-		if (nodeData.name === "easy XYPlot") {
+		if (nodeData.name === "easy XYPlot" && nodeData.input?.hidden?.plot_dict) {
 			plotDict = nodeData.input.hidden.plot_dict[0];
 
 			for (const key in plotDict) {
