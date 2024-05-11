@@ -155,47 +155,47 @@ class StabilityAPI:
 stableAPI = StabilityAPI()
 
 
-@PromptServer.instance.routes.get("/easyuse/stability/api_keys")
-async def get_stability_api_keys(request):
-    stableAPI.getAPIKeys()
-    return web.json_response({"keys": stableAPI.api_keys, "current": stableAPI.api_current})
-
-@PromptServer.instance.routes.post("/easyuse/stability/set_api_keys")
-async def set_stability_api_keys(request):
-    post = await request.post()
-    api_keys = post.get("api_keys")
-    current = post.get('current')
-    if api_keys is not None:
-        api_keys = json.loads(api_keys)
-        stableAPI.setAPIKeys(api_keys)
-        if current is not None:
-            print(current)
-            stableAPI.setAPIDefault(int(current))
-            account = await stableAPI.getUserAccount()
-            balance = await stableAPI.getUserBalance()
-            return web.json_response({'account': account, 'balance': balance})
-        else:
-            return web.json_response({'status': 'ok'})
-    else:
-        return web.Response(status=400)
-
-@PromptServer.instance.routes.post("/easyuse/stability/set_apikey_default")
-async def set_stability_api_default(request):
-    post = await request.post()
-    current = post.get("current")
-    if current is not None and current < len(stableAPI.api_keys):
-        stableAPI.api_current = current
-        return web.json_response({'status': 'ok'})
-    else:
-        return web.Response(status=400)
-
-@PromptServer.instance.routes.get("/easyuse/stability/user_info")
-async def get_account_info(request):
-    account = await stableAPI.getUserAccount()
-    balance = await stableAPI.getUserBalance()
-    return web.json_response({'account': account, 'balance': balance})
-
-@PromptServer.instance.routes.get("/easyuse/stability/balance")
-async def get_balance_info(request):
-    balance = await stableAPI.getUserBalance()
-    return web.json_response({'balance': balance})
+# @PromptServer.instance.routes.get("/easyuse/stability/api_keys")
+# async def get_stability_api_keys(request):
+#     stableAPI.getAPIKeys()
+#     return web.json_response({"keys": stableAPI.api_keys, "current": stableAPI.api_current})
+#
+# @PromptServer.instance.routes.post("/easyuse/stability/set_api_keys")
+# async def set_stability_api_keys(request):
+#     post = await request.post()
+#     api_keys = post.get("api_keys")
+#     current = post.get('current')
+#     if api_keys is not None:
+#         api_keys = json.loads(api_keys)
+#         stableAPI.setAPIKeys(api_keys)
+#         if current is not None:
+#             print(current)
+#             stableAPI.setAPIDefault(int(current))
+#             account = await stableAPI.getUserAccount()
+#             balance = await stableAPI.getUserBalance()
+#             return web.json_response({'account': account, 'balance': balance})
+#         else:
+#             return web.json_response({'status': 'ok'})
+#     else:
+#         return web.Response(status=400)
+#
+# @PromptServer.instance.routes.post("/easyuse/stability/set_apikey_default")
+# async def set_stability_api_default(request):
+#     post = await request.post()
+#     current = post.get("current")
+#     if current is not None and current < len(stableAPI.api_keys):
+#         stableAPI.api_current = current
+#         return web.json_response({'status': 'ok'})
+#     else:
+#         return web.Response(status=400)
+#
+# @PromptServer.instance.routes.get("/easyuse/stability/user_info")
+# async def get_account_info(request):
+#     account = await stableAPI.getUserAccount()
+#     balance = await stableAPI.getUserBalance()
+#     return web.json_response({'account': account, 'balance': balance})
+#
+# @PromptServer.instance.routes.get("/easyuse/stability/balance")
+# async def get_balance_info(request):
+#     balance = await stableAPI.getUserBalance()
+#     return web.json_response({'balance': balance})

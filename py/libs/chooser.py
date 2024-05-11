@@ -45,8 +45,8 @@ class ChooserMessage:
             return [1] if asList else 1
 
 
-@PromptServer.instance.routes.post('/easyuse/image_chooser_message')
-async def make_image_selection(request):
-    post = await request.post()
-    ChooserMessage.addMessage(post.get("id"), post.get("message"))
-    return web.json_response({})
+# @PromptServer.instance.routes.post('/easyuse/image_chooser_message')
+# async def make_image_selection(request):
+#     post = await request.post()
+#     ChooserMessage.addMessage(post.get("id"), post.get("message"))
+#     return web.json_response({})
