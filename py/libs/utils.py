@@ -1,3 +1,10 @@
+class AlwaysEqualProxy(str):
+    def __eq__(self, _):
+        return True
+
+    def __ne__(self, _):
+        return False
+
 comfy_ui_revision = None
 def get_comfyui_revision():
     try:
@@ -10,11 +17,69 @@ def get_comfyui_revision():
         comfy_ui_revision = "Unknown"
     return comfy_ui_revision
 
+
+import sys
+import importlib.util
+import importlib.metadata
+from packaging import version
+from server import PromptServer
+def is_package_installed(package):
+    try:
+        module = importlib.util.find_spec(package)
+        return module is not None
+    except ImportError as e:
+        print(e)
+        return False
+
+def install_package(package, v=None, compare=True, compare_version=None):
+    run_install = True
+    if is_package_installed(package):
+        try:
+            installed_version = importlib.metadata.version(package)
+            if v is not None:
+                if compare_version is None:
+                    compare_version = v
+                if not compare or version.parse(installed_version) >= version.parse(compare_version):
+                    run_install = False
+            else:
+                run_install = False
+        except:
+            run_install = False
+
+    if run_install:
+        import subprocess
+        package_command = package + '==' + v if v is not None else package
+        PromptServer.instance.send_sync("easyuse-toast", {'content': f"Installing {package_command}...", 'duration': 5000})
+        result = subprocess.run([sys.executable, '-s', '-m', 'pip', 'install', package_command], capture_output=True, text=True)
+        if result.returncode == 0:
+            PromptServer.instance.send_sync("easyuse-toast", {'content': f"{package} installed successfully", 'type': 'success', 'duration': 5000})
+            print(f"Package {package} installed successfully")
+            return True
+        else:
+            PromptServer.instance.send_sync("easyuse-toast", {'content': f"{package} installed failed", 'type': 'error', 'duration': 5000})
+            print(f"Package {package} installed failed")
+            return False
+    else:
+        return False
+
 def compare_revision(num):
     global comfy_ui_revision
     if not comfy_ui_revision:
         comfy_ui_revision = get_comfyui_revision()
     return True if comfy_ui_revision == 'Unknown' or int(comfy_ui_revision) >= num else False
+def find_tags(string: str, sep="/") -> list[str]:
+    """
+    find tags from string use the sep for split
+    Note: string may contain the \\ or / for path separator
+    """
+    if not string:
+        return []
+    string = string.replace("\\", "/")
+    while "//" in string:
+        string = string.replace("//", "/")
+    if string and sep in string:
+        return string.split(sep)[:-1]
+    return []
 
 import folder_paths
 def add_folder_path_and_extensions(folder_name, full_folder_paths, extensions):
@@ -26,6 +91,25 @@ def add_folder_path_and_extensions(folder_name, full_folder_paths, extensions):
         folder_paths.folder_names_and_paths[folder_name] = (current_paths, updated_extensions)
     else:
         folder_paths.folder_names_and_paths[folder_name] = (full_folder_paths, extensions)
+
+from comfy.model_base import BaseModel
+import comfy.supported_models
+import comfy.supported_models_base
+def get_sd_version(model):
+    base: BaseModel = model.model
+    model_config: comfy.supported_models.supported_models_base.BASE = base.model_config
+    if isinstance(model_config, comfy.supported_models.SDXL):
+        return 'sdxl'
+    elif isinstance(
+            model_config, (comfy.supported_models.SD15, comfy.supported_models.SD20)
+    ):
+        return 'sd1'
+    elif isinstance(
+            model_config, (comfy.supported_models.SVD_img2vid)
+    ):
+        return 'svd'
+    else:
+        return 'unknown'
 
 def find_nearest_steps(clip_id, prompt):
     """Find the nearest KSampler or preSampling node that references the given id."""
@@ -64,7 +148,9 @@ def find_wildcards_seed(clip_id, text, prompt):
                     if id != 0:
                         if id == wildcard_id:
                             wildcard_node = prompt[wildcard_id]
-                            seed = wildcard_node["inputs"]["seed_num"] if "seed_num" in wildcard_node["inputs"] else None
+                            seed = wildcard_node["inputs"]["seed"] if "seed" in wildcard_node["inputs"] else None
+                            if seed is None:
+                                seed = wildcard_node["inputs"]["seed_num"] if "seed_num" in wildcard_node["inputs"] else None
                             return seed
                         else:
                             return find_link_clip_id(id, seed, wildcard_id)
@@ -91,11 +177,14 @@ def is_linked_styles_selector(prompt, my_unique_id, prompt_type='positive'):
     else:
         return False
 
+use_mirror = False
 def get_local_filepath(url, dirname, local_file_name=None):
     """Get local file path when is already downloaded or download it"""
     import os
+    from server import PromptServer
     from urllib.parse import urlparse
     from torch.hub import download_url_to_file
+    global use_mirror
     if not os.path.exists(dirname):
         os.makedirs(dirname)
     if not local_file_name:
@@ -103,8 +192,23 @@ def get_local_filepath(url, dirname, local_file_name=None):
         local_file_name = os.path.basename(parsed_url.path)
     destination = os.path.join(dirname, local_file_name)
     if not os.path.exists(destination):
-        print(f'downloading {url} to {destination}')
-        download_url_to_file(url, destination)
+        try:
+            if use_mirror:
+                url = url.replace('huggingface.co', 'hf-mirror.com')
+            print(f'downloading {url} to {destination}')
+            PromptServer.instance.send_sync("easyuse-toast", {'content': f'Downloading model to {destination}, please wait...', 'duration': 10000})
+            download_url_to_file(url, destination)
+        except Exception as e:
+            use_mirror = True
+            url = url.replace('huggingface.co', 'hf-mirror.com')
+            print(f'无法从huggingface下载，正在尝试从 {url} 下载...')
+            PromptServer.instance.send_sync("easyuse-toast", {'content': f'无法连接huggingface，正在尝试从 {url} 下载...', 'duration': 10000})
+            try:
+                download_url_to_file(url, destination)
+            except Exception as err:
+                PromptServer.instance.send_sync("easyuse-toast",
+                                                {'content': f'无法从 {url} 下载模型', 'type':'error'})
+                raise Exception(f'无法从 {url} 下载，错误信息：{str(err.args[0])}')
     return destination
 
 def to_lora_patch_dict(state_dict: dict) -> dict:
@@ -131,7 +235,7 @@ def easySave(images, filename_prefix, output_type, prompt=None, extra_pnginfo=No
     from nodes import PreviewImage, SaveImage
     if output_type == "Hide":
         return list()
-    if output_type == "Preview":
+    if output_type in ["Preview", "Preview&Choose"]:
         filename_prefix = 'easyPreview'
         results = PreviewImage().save_images(images, filename_prefix, prompt, extra_pnginfo)
         return results['ui']['images']
@@ -139,29 +243,24 @@ def easySave(images, filename_prefix, output_type, prompt=None, extra_pnginfo=No
         results = SaveImage().save_images(images, filename_prefix, prompt, extra_pnginfo)
         return results['ui']['images']
 
-# Image Utils
-# from PIL import Image, ImageDraw
-# import numpy as np
-# import torch
-# def is_image_transparent(img):
-#     print(img.shape)
-#     if len(img.shape) > 3 and img.shape[3] == 4:
-#         return True
-#     else:
-#         m = tensor2pil(img)
-#         if m.mode == "RGBA":
-#             return True
-#         else:
-#             return False
-#
-# def create_grid(image_size, box_size):
-#     img = Image.new('RGBA', image_size, (255, 255, 255, 255))  # 白色背景
-#     draw = ImageDraw.Draw(img)
-#
-#     for x in range(0, img.width, box_size):
-#         for y in range(0, img.height, box_size):
-#             if (x // box_size % 2 == 0 and y // box_size % 2 == 0) or (x // box_size % 2 == 1 and y // box_size % 2 == 1):
-#                 draw.rectangle([(x, y), (x+box_size, y+box_size)], fill=(204, 204, 204, 255))  # 不透明
-#             else:
-#                 continue  # 保持透明
-#     return img
+def getMetadata(filepath):
+    with open(filepath, "rb") as file:
+        # https://github.com/huggingface/safetensors#format
+        # 8 bytes: N, an unsigned little-endian 64-bit integer, containing the size of the header
+        header_size = int.from_bytes(file.read(8), "little", signed=False)
+
+        if header_size <= 0:
+            raise BufferError("Invalid header size")
+
+        header = file.read(header_size)
+        if header_size <= 0:
+            raise BufferError("Invalid header")
+
+        return header
+
+def cleanGPUUsedForce():
+    import torch.cuda
+    import comfy.model_management
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+    comfy.model_management.unload_all_models()

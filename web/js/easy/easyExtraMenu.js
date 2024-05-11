@@ -1,10 +1,14 @@
-import {app} from "/iframe/comfy/scripts/app.js";
+import {app} from "../../../../scripts/app.js";
+import {$t} from '../common/i18n.js'
+import {CheckpointInfoDialog, LoraInfoDialog} from "../common/model.js";
 
 const loaders = ['easy fullLoader', 'easy a1111Loader', 'easy comfyLoader']
-const preSampling = ['easy preSampling', 'easy preSamplingAdvanced', 'easy preSamplingDynamicCFG', 'easy preSamplingLayerDiffusion', 'easy fullkSampler']
+const preSampling = ['easy preSampling', 'easy preSamplingAdvanced', 'easy preSamplingDynamicCFG', 'easy preSamplingNoiseIn', 'easy preSamplingCustom', 'easy preSamplingLayerDiffusion', 'easy fullkSampler']
 const kSampler = ['easy kSampler', 'easy kSamplerTiled', 'easy kSamplerInpainting', 'easy kSamplerDownscaleUnet', 'easy kSamplerLayerDiffusion']
 const controlnet = ['easy controlnetLoader', 'easy controlnetLoaderADV', 'easy instantIDApply', 'easy instantIDApplyADV']
+const ipadapter = ['easy ipadapterApply', 'easy ipadapterApplyADV', 'easy ipadapterStyleComposition', 'easy ipadapterApplyFromParams']
 const positive_prompt = ['easy positive', 'easy wildcards']
+const imageNode = ['easy loadImageBase64', 'LoadImage', 'LoadImageMask']
 const widgetMapping = {
     "positive_prompt":{
         "text": "positive",
@@ -26,10 +30,12 @@ const widgetMapping = {
     "preSampling":{
         "steps": "steps",
         "cfg": "cfg",
+        "cfg_scale_min": "cfg",
         "sampler_name": "sampler_name",
         "scheduler": "scheduler",
         "denoise": "denoise",
-        "seed_num": "seed_num"
+        "seed_num": "seed_num",
+        "seed": "seed"
     },
     "kSampler":{
         "image_output": "image_output",
@@ -43,6 +49,22 @@ const widgetMapping = {
         "cn_strength": ["strength", "cn_strength"],
         "cn_soft_weights": ["scale_soft_weights","cn_soft_weights"],
     },
+    "ipadapter":{
+        "preset":"preset",
+        "lora_strength": "lora_strength",
+        "provider": "provider",
+        "weight":"weight",
+        "weight_faceidv2": "weight_faceidv2",
+        "start_at": "start_at",
+        "end_at": "end_at",
+        "cache_mode": "cache_mode",
+        "use_tiled": "use_tiled",
+    },
+    "load_image":{
+        "image":"image",
+        "base64_data":"base64_data",
+        "channel": "channel"
+    }
 }
 const inputMapping = {
     "loaders":{
@@ -71,6 +93,13 @@ const inputMapping = {
     "positive_prompt":{
 
     },
+    "ipadapter":{
+        "model":"model",
+        "image":"image",
+        "image_style": "image",
+        "attn_mask":"attn_mask",
+        "optional_ipadapter":"optional_ipadapter"
+    }
 };
 
 const outputMapping = {
@@ -102,7 +131,13 @@ const outputMapping = {
     "load_image":{
         "IMAGE":"IMAGE",
         "MASK": "MASK"
-    }
+    },
+    "ipadapter":{
+        "model":"model",
+        "tiles":"tiles",
+        "masks":"masks",
+        "ipadapter":"ipadapter"
+    },
 };
 
 // 替换节点
@@ -238,6 +273,25 @@ const addMenu = (content, type, nodes_include, nodeType, has_submenu=true) => {
             has_submenu: has_submenu,
             callback: (value, options, e, menu, node) => showSwapMenu(value, options, e, menu, node, type, nodes_include)
         })
+        if(type == 'loaders') {
+            options.unshift({
+                content: $t("💎 View Lora Info..."),
+                callback: (value, options, e, menu, node) => {
+                    const widget = node.widgets.find(cate => cate.name == 'lora_name')
+                    let name = widget.value;
+                    if (!name || name == 'None') return
+                    new LoraInfoDialog(name).show('loras', name);
+                }
+            })
+            options.unshift({
+                content: $t("💎 View Checkpoint Info..."),
+                callback: (value, options, e, menu, node) => {
+                    let name = node.widgets[0].value;
+                    if (!name || name == 'None') return
+                    new CheckpointInfoDialog(name).show('checkpoints', name);
+                }
+            })
+        }
     })
 }
 const showSwapMenu = (value, options, e, menu, node, type, nodes_include) => {
@@ -289,25 +343,6 @@ function hideWidget(node, widget, suffix = "") {
 		}
 	}
 }
-function deepEqual (obj1, obj2) {
-  if (typeof obj1 !== typeof obj2) {
-    return false
-  }
-  if (typeof obj1 !== 'object' || obj1 === null || obj2 === null) {
-    return obj1 === obj2
-  }
-  const keys1 = Object.keys(obj1)
-  const keys2 = Object.keys(obj2)
-  if (keys1.length !== keys2.length) {
-    return false
-  }
-  for (let key of keys1) {
-    if (!deepEqual(obj1[key], obj2[key])) {
-      return false
-    }
-  }
-  return true
-}
 function convertToInput(node, widget, config) {
     console.log('config:', config)
 	hideWidget(node, widget);
@@ -316,9 +351,11 @@ function convertToInput(node, widget, config) {
 
 	// Add input and store widget config for creating on primitive node
 	const sz = node.size;
-	node.addInput(widget.name, type, {
-		widget: { name: widget.name, [GET_CONFIG]: () => config },
-	});
+    if(!widget.options || !widget.options.forceInput){
+        node.addInput(widget.name, type, {
+        	widget: { name: widget.name, [GET_CONFIG]: () => config },
+        });
+    }
 
 	for (const widget of node.widgets) {
 		widget.last_y += LiteGraph.NODE_SLOT_HEIGHT;
@@ -361,7 +398,6 @@ const reloadNode = function (node) {
                 const input_slot = node.findInputSlot(input_name)
                 const input_node = node.getInputNode(input_slot)
                 const input_link = node.getInputLink(input_slot)
-
                 inputLinks.push([input_link.origin_slot, input_node, input_name])
             }
         }
@@ -474,7 +510,7 @@ app.registerExtension({
         // 刷新节点
         addMenuHandler(nodeType, function (_, options) {
             options.unshift({
-                content: "🔃 Reload Node",
+                content: $t("🔃 Reload Node"),
                 callback: (value, options, e, menu, node) => {
                     let graphcanvas = LGraphCanvas.active_canvas;
                     if (!graphcanvas.selected_nodes || Object.keys(graphcanvas.selected_nodes).length <= 1) {
@@ -486,7 +522,19 @@ app.registerExtension({
                     }
                 }
             })
+            // ckptNames
+            if(nodeData.name == 'easy ckptNames'){
+                options.unshift({
+                    content: $t("💎 View Checkpoint Info..."),
+                    callback: (value, options, e, menu, node) => {
+                        let name = node.widgets[0].value;
+                        if (!name || name == 'None') return
+                        new CheckpointInfoDialog(name).show('checkpoints', name);
+                    }
+                })
+            }
         })
+
         // Swap提示词
         // if (positive_prompt.includes(nodeData.name)) {
         //     addMenu("↪️ Swap EasyPrompt", 'positive_prompt', positive_prompt, nodeType)
@@ -506,6 +554,14 @@ app.registerExtension({
         // Swap ControlNet
         if (controlnet.includes(nodeData.name)) {
             addMenu("↪️ Swap EasyControlnet", 'controlnet', controlnet, nodeType)
+        }
+        // Swap IPAdapater
+        if (ipadapter.includes(nodeData.name)) {
+            addMenu("↪️ Swap EasyIPAdapater", 'ipadapter', ipadapter, nodeType)
+        }
+        // Swap Image
+        if (imageNode.includes(nodeData.name)) {
+            addMenu("↪️ Swap LoadImage", 'load_image', imageNode, nodeType)
         }
     }
 });

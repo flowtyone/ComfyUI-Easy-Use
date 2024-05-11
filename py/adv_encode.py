@@ -237,8 +237,8 @@ def encode_token_weights_g(model, token_weight_pairs):
 
 
 def encode_token_weights_l(model, token_weight_pairs):
-    l_out, _ = model.clip_l.encode_token_weights(token_weight_pairs)
-    return l_out, None
+    l_out, pooled = model.clip_l.encode_token_weights(token_weight_pairs)
+    return l_out, pooled
 
 
 def encode_token_weights(model, token_weight_pairs, encode_func):
@@ -267,7 +267,7 @@ def advanced_encode(clip, text, token_normalization, weight_interpretation, w_ma
     if a1111_prompt_style:
         if "smZ CLIPTextEncode" in NODE_CLASS_MAPPINGS:
             cls = NODE_CLASS_MAPPINGS['smZ CLIPTextEncode']
-            embeddings_final, = cls().encode(clip, text,weight_interpretation, True, True, False, False, 6, 1024, 1024, 0, 0, 1024, 1024, '', '', steps)
+            embeddings_final, = cls().encode(clip, text, weight_interpretation, True, True, False, False, 6, 1024, 1024, 0, 0, 1024, 1024, '', '', steps)
             return embeddings_final
         else:
             raise Exception(f"[smzNodes Not Found] you need to install 'ComfyUI-smzNodes'")
@@ -276,7 +276,7 @@ def advanced_encode(clip, text, token_normalization, weight_interpretation, w_ma
     pass3 = [x for x in pass3 if x != '']
 
     if len(pass3) == 0:
-        return ['']
+        pass3 = ['']
 
     # pass3_str = [f'[{x}]' for x in pass3]
     # print(f"CLIP: {str.join(' + ', pass3_str)}")
@@ -308,15 +308,16 @@ def advanced_encode(clip, text, token_normalization, weight_interpretation, w_ma
 
             embeddings_final, pooled = prepareXL(embs_l, embs_g, pooled, clip_balance)
 
-            cond = [[embeddings_final,
-                             {"pooled_output": pooled, "width": width, "height": height, "crop_w": crop_w,
-                              "crop_h": crop_h, "target_width": target_width, "target_height": target_height}]]
+            cond = [[embeddings_final, {"pooled_output": pooled}]]
+            # cond = [[embeddings_final,
+            #                  {"pooled_output": pooled, "width": width, "height": height, "crop_w": crop_w,
+            #                   "crop_h": crop_h, "target_width": target_width, "target_height": target_height}]]
         else:
             embeddings_final, pooled = advanced_encode_from_tokens(tokenized['l'],
                                                                    token_normalization,
                                                                    weight_interpretation,
-                                                                   lambda x: (clip.encode_from_tokens({'l': x}), None),
-                                                                   w_max=w_max)
+                                                                   lambda x: encode_token_weights(clip, x, encode_token_weights_l),
+                                                                   w_max=w_max,return_pooled=True,)
             cond = [[embeddings_final, {"pooled_output": pooled}]]
 
         if conditioning is not None:

@@ -1,5 +1,4 @@
 import { app } from "../../../scripts/app.js";
-import { ComfyWidgets } from '/iframe/comfy/scripts/widgets.js'
 
 // Node that allows you to tunnel connections for cleaner graphs
 
@@ -201,7 +200,7 @@ app.registerExtension({
 					},
 					{
 						values: () => {
-                            const setterNodes = graph._nodes.filter((otherNode) => otherNode.type == 'easy setNode');
+                            const setterNodes = node.graph._nodes.filter((otherNode) => otherNode.type == 'easy setNode');
                             return setterNodes.map((otherNode) => otherNode.widgets[0].value).sort();
                         }
 					}

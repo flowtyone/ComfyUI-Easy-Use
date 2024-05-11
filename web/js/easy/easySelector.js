@@ -1,115 +1,9 @@
 // 1.0.3
-import { app } from "/iframe/comfy/scripts/app.js";
-import { api } from "/iframe/comfy/scripts/api.js";
-import { $el } from "/iframe/comfy/scripts/ui.js";
+import { app } from "../../../../scripts/app.js";
+import { api } from "../../../../scripts/api.js";
+import { $el } from "../../../../scripts/ui.js";
+import { $t } from "../common/i18n.js";
 
-// 添加样式
-const styleElement = document.createElement("style");
-const cssCode = `
-    .easyuse-prompt-styles .tools{
-        display:flex;
-        justify-content:flex-between;
-        height:30px;
-        padding-bottom:10px;
-        border-bottom:2px solid var(--border-color);
-    }
-    .easyuse-prompt-styles .tools button.delete{
-        height:30px;
-        border-radius: 8px;
-        border: 2px solid var(--border-color);
-        font-size:11px;
-        background:var(--comfy-input-bg);
-        color:var(--error-text);
-        box-shadow:none;
-        cursor:pointer;
-    }
-    .easyuse-prompt-styles .tools button.delete:hover{
-        filter: brightness(1.2);
-    }
-    .easyuse-prompt-styles .tools textarea.search{
-        flex:1;
-        margin-left:10px;
-        height:20px;
-        line-height:20px;
-        border-radius: 8px;
-        border: 2px solid var(--border-color);
-        font-size:11px;
-        background:var(--comfy-input-bg);
-        color:var(--input-text);
-        box-shadow:none;
-        padding:4px 10px;
-        outline: none;
-        resize: none;
-        appearance:none;
-    }
-    .easyuse-prompt-styles-list{
-        list-style: none;
-        padding: 0;
-        margin: 0; 
-        min-height: 150px;
-        height: calc(100% - 40px);
-        overflow: auto;
-        // display: flex;
-        // flex-wrap: wrap;
-    }
-    .easyuse-prompt-styles-tag{
-        display: inline-block;
-        vertical-align: middle;
-        margin-top: 8px;
-        margin-right: 8px;
-        padding:4px;
-        color: var(--input-text);
-        background-color: var(--comfy-input-bg);
-        border-radius: 8px;
-        border: 2px solid var(--border-color);
-        font-size:11px;
-        cursor:pointer;
-    }
-    .easyuse-prompt-styles-tag.hide{
-        display:none;
-    }
-    .easyuse-prompt-styles-tag:hover{
-       filter: brightness(1.2);
-    }
-    .easyuse-prompt-styles-tag input{
-        --ring-color: transparent;
-        position: relative;
-        box-shadow: none;
-        border: 2px solid var(--border-color);
-        border-radius: 2px;
-        background: linear-gradient(135deg, var(--comfy-menu-bg) 0%, var(--comfy-input-bg) 60%);
-    }
-    .easyuse-prompt-styles-tag input[type=checkbox]:checked{
-        border: 1px solid #006691;
-        background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3e%3c/svg%3e");
-        background-color: #006691;
-    }
-    .easyuse-prompt-styles-tag input[type=checkbox]{
-        color-adjust: exact;
-        display: inline-block;
-        flex-shrink: 0;
-        vertical-align: middle;
-        appearance: none;
-        border: 2px solid var(--border-color);
-        background-origin: border-box;
-        padding: 0;
-        width: 1rem;
-        height: 1rem;
-        border-radius:4px;
-        color:#006691;
-        user-select: none;
-    }
-    .easyuse-prompt-styles-tag span{
-        margin:0 4px;
-        vertical-align: middle;
-    }
-    #show_image_id{
-        width:128px;
-        height:128px;
-    }
-`
-styleElement.innerHTML = cssCode
-document.head.appendChild(styleElement);
 // 获取风格列表
 let styles_list_cache = {}
 let styles_image_cache = {}
@@ -225,19 +119,24 @@ app.registerExtension({
                 onNodeCreated ? onNodeCreated?.apply(this, arguments) : undefined;
                 const styles_id =  this.widgets.findIndex((w) => w.name == 'styles');
                 const language = localStorage['AGL.Locale'] || localStorage['Comfy.Settings.AGL.Locale'] || 'en-US'
-
                 const list = $el("ul.easyuse-prompt-styles-list",[]);
                 let styles_values = ''
                 this.setProperty("values", [])
 
                 let selector = this.addDOMWidget('select_styles',"btn",$el('div.easyuse-prompt-styles',[$el('div.tools', [
                         $el('button.delete',{
-                            textContent: language == 'zh-CN' ? '清空所有' : 'Empty All',
+                            textContent: $t('Empty All'),
                             style:{},
                             onclick:()=>{
+                                selector.element.children[0].querySelectorAll(".search").forEach(el=>{
+                                    el.value = ''
+                                })
                                 selector.element.children[1].querySelectorAll(".easyuse-prompt-styles-tag-selected").forEach(el => {
                                     el.classList.remove("easyuse-prompt-styles-tag-selected");
                                     el.children[0].checked = false
+                                })
+                                selector.element.children[1].querySelectorAll(".easyuse-prompt-styles-tag").forEach(el => {
+                                    el.classList.remove('hide')
                                 })
                                 this.setProperty("values", [])
                             }}
@@ -246,7 +145,7 @@ app.registerExtension({
                             dir:"ltr",
                             style:{"overflow-y": "scroll"},
                             rows:1,
-                            placeholder:language == 'zh-CN' ? "🔎 在此处输入以搜索样式 ..."  : "🔎 Type here to search styles ...",
+                            placeholder:$t("🔎 Type here to search styles ..."),
                             oninput:(e)=>{
                                 let value = e.target.value
                                 selector.element.children[1].querySelectorAll(".easyuse-prompt-styles-tag").forEach(el => {

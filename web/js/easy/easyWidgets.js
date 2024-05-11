@@ -1,5 +1,5 @@
-import { app } from "/iframe/comfy/scripts/app.js";
-import { ComfyWidgets } from "/iframe/comfy/scripts/widgets.js";
+import { app } from "../../../../scripts/app.js";
+import { ComfyWidgets } from "../../../../scripts/widgets.js";
 
 const KEY_CODES = { ENTER: 13, ESC: 27, ARROW_DOWN: 40, ARROW_UP: 38 };
 const WIDGET_GAP = -4;
@@ -150,7 +150,6 @@ const cssCode = `
 	border-radius: 7px;
 	text-align: center;
 	text-wrap: balance;
-	text-transform: uppercase;
 }
 .hideInfo-dropdown {
 	position: absolute;

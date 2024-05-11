@@ -1,33 +1,14 @@
-import { app } from "/iframe/comfy/scripts/app.js";
-import { api } from "/iframe/comfy/scripts/api.js";
-import { ComfyWidgets } from "/iframe/comfy/scripts/widgets.js";
+import { app } from "../../../../scripts/app.js";
+import { api } from "../../../../scripts/api.js";
+import { ComfyWidgets } from "../../../../scripts/widgets.js";
+import { toast} from "../common/toast.js";
+import { $t } from '../common/i18n.js';
 
-let origProps = {};
+import { findWidgetByName, toggleWidget, updateNodeHeight} from "../common/utils.js";
 
-const findWidgetByName = (node, name) => node.widgets.find((w) => w.name === name);
+const seedNodes = ["easy seed", "easy latentNoisy", "easy wildcards", "easy preSampling", "easy preSamplingAdvanced", "easy preSamplingNoiseIn", "easy preSamplingSdTurbo", "easy preSamplingCascade", "easy preSamplingDynamicCFG", "easy preSamplingLayerDiffusion", "easy fullkSampler", "easy fullCascadeKSampler"]
+const loaderNodes = ["easy fullLoader", "easy a1111Loader", "easy comfyLoader"]
 
-const doesInputWithNameExist = (node, name) => node.inputs ? node.inputs.some((input) => input.name === name) : false;
-
-function updateNodeHeight(node) {
-	node.setSize([node.size[0], node.computeSize()[1]]);
-}
-
-function toggleWidget(node, widget, show = false, suffix = "") {
-	if (!widget || doesInputWithNameExist(node, widget.name)) return;
-	if (!origProps[widget.name]) {
-		origProps[widget.name] = { origType: widget.type, origComputeSize: widget.computeSize };	
-	}
-	const origSize = node.size;
-
-	widget.type = show ? origProps[widget.name].origType : "easyHidden" + suffix;
-	widget.computeSize = show ? origProps[widget.name].origComputeSize : () => [0, -4];
-
-	widget.linkedWidgets?.forEach(w => toggleWidget(node, w, ":" + widget.name, show));	
-
-	const height = show ? Math.max(node.computeSize()[1], origSize[1]) : node.size[1];
-	node.setSize([node.size[0], height]);
-	
-}
 
 function widgetLogic(node, widget) {
 	if (widget.name === 'lora_name') {
@@ -70,18 +51,18 @@ function widgetLogic(node, widget) {
 		updateNodeHeight(node)
 	}
 	if (widget.name === 'image_output') {
-	    if (widget.value === 'Sender' || widget.value === 'Sender/Save'){
+	    if (widget.value === 'Sender' || widget.value === 'Sender&Save'){
 	        toggleWidget(node, findWidgetByName(node, 'link_id'), true)
 	    }else {
 	        toggleWidget(node, findWidgetByName(node, 'link_id'))
 	    }
-		if (widget.value === 'Hide' || widget.value === 'Preview' || widget.value === 'Sender') {
+		if (widget.value === 'Hide' || widget.value === 'Preview' || widget.value == 'Preview&Choose' || widget.value === 'Sender') {
 			toggleWidget(node, findWidgetByName(node, 'save_prefix'))
 			toggleWidget(node, findWidgetByName(node, 'output_path'))
 			toggleWidget(node, findWidgetByName(node, 'embed_workflow'))
 			toggleWidget(node, findWidgetByName(node, 'number_padding'))
 			toggleWidget(node, findWidgetByName(node, 'overwrite_existing'))
-		} else if (widget.value === 'Save' || widget.value === 'Hide/Save' || widget.value === 'Sender/Save') {
+		} else if (widget.value === 'Save' || widget.value === 'Hide&Save' || widget.value === 'Sender&Save') {
 			toggleWidget(node, findWidgetByName(node, 'save_prefix'), true)
 			toggleWidget(node, findWidgetByName(node, 'output_path'), true)
 			toggleWidget(node, findWidgetByName(node, 'embed_workflow'), true)
@@ -89,7 +70,7 @@ function widgetLogic(node, widget) {
 			toggleWidget(node, findWidgetByName(node, 'overwrite_existing'), true)
 		}
 
-		if(widget.value === 'Hide' || widget.value === 'Hide/Save'){
+		if(widget.value === 'Hide' || widget.value === 'Hide&Save'){
 			toggleWidget(node, findWidgetByName(node, 'decode_vae_name'))
 		}else{
 			toggleWidget(node, findWidgetByName(node, 'decode_vae_name'), true)
@@ -97,11 +78,13 @@ function widgetLogic(node, widget) {
 	}
 	if (widget.name === 'add_noise') {
 		if (widget.value === "disable") {
-			toggleWidget(node, findWidgetByName(node, 'seed_num'))
+			toggleWidget(node, findWidgetByName(node, 'seed'))
 			toggleWidget(node, findWidgetByName(node, 'control_before_generate'))
+			toggleWidget(node, findWidgetByName(node, 'control_after_generate'))
 		} else {
-			toggleWidget(node, findWidgetByName(node, 'seed_num'), true)
+			toggleWidget(node, findWidgetByName(node, 'seed'), true)
 			toggleWidget(node, findWidgetByName(node, 'control_before_generate'), true)
+			toggleWidget(node, findWidgetByName(node, 'control_after_generate'), true)
 		}
 		updateNodeHeight(node)
 	}
@@ -128,16 +111,31 @@ function widgetLogic(node, widget) {
 		updateNodeHeight(node)
 	}
 	if (widget.name === 'mode') {
-		let number_to_show = findWidgetByName(node, 'num_loras').value + 1
-		for (let i = 0; i < number_to_show; i++) {
-			if (widget.value === "simple") {
-				toggleWidget(node, findWidgetByName(node, 'lora_'+i+'_strength'), true)
-				toggleWidget(node, findWidgetByName(node, 'lora_'+i+'_model_strength'))
-				toggleWidget(node, findWidgetByName(node, 'lora_'+i+'_clip_strength'))
-			} else {
-				toggleWidget(node, findWidgetByName(node, 'lora_'+i+'_strength'))
-				toggleWidget(node, findWidgetByName(node, 'lora_'+i+'_model_strength'), true)
-				toggleWidget(node, findWidgetByName(node, 'lora_'+i+'_clip_strength'), true)}
+		switch (node.comfyClass) {
+			case 'easy loraStack':
+				let number_to_show = findWidgetByName(node, 'num_loras').value + 1
+				for (let i = 0; i < number_to_show; i++) {
+					if (widget.value === "simple") {
+						toggleWidget(node, findWidgetByName(node, 'lora_'+i+'_strength'), true)
+						toggleWidget(node, findWidgetByName(node, 'lora_'+i+'_model_strength'))
+						toggleWidget(node, findWidgetByName(node, 'lora_'+i+'_clip_strength'))
+					} else {
+						toggleWidget(node, findWidgetByName(node, 'lora_'+i+'_strength'))
+						toggleWidget(node, findWidgetByName(node, 'lora_'+i+'_model_strength'), true)
+						toggleWidget(node, findWidgetByName(node, 'lora_'+i+'_clip_strength'), true)}
+				}
+				break
+			case 'easy icLightApply':
+				if (widget.value === "Foreground") {
+					toggleWidget(node, findWidgetByName(node, 'lighting'), true)
+					toggleWidget(node, findWidgetByName(node, 'remove_bg'), true)
+					toggleWidget(node, findWidgetByName(node, 'source'))
+				} else {
+					toggleWidget(node, findWidgetByName(node, 'lighting'))
+					toggleWidget(node, findWidgetByName(node, 'source'), true)
+					toggleWidget(node, findWidgetByName(node, 'remove_bg'))
+				}
+				break
 		}
 		updateNodeHeight(node)
 	}
@@ -181,6 +179,146 @@ function widgetLogic(node, widget) {
 			toggleWidget(node, findWidgetByName(node, 'replace_text'), true)
 		}else{
 			toggleWidget(node, findWidgetByName(node, 'replace_text'))
+		}
+		updateNodeHeight(node)
+	}
+
+	if (widget.name === 'conditioning_mode') {
+		if (["replace", "concat", "combine"].includes(widget.value)) {
+			toggleWidget(node, findWidgetByName(node, 'average_strength'))
+			toggleWidget(node, findWidgetByName(node, 'old_cond_start'))
+			toggleWidget(node, findWidgetByName(node, 'old_cond_end'))
+			toggleWidget(node, findWidgetByName(node, 'new_cond_start'))
+			toggleWidget(node, findWidgetByName(node, 'new_cond_end'))
+		} else if(widget.value == 'average'){
+			toggleWidget(node, findWidgetByName(node, 'average_strength'), true)
+			toggleWidget(node, findWidgetByName(node, 'old_cond_start'))
+			toggleWidget(node, findWidgetByName(node, 'old_cond_end'))
+			toggleWidget(node, findWidgetByName(node, 'new_cond_start'))
+			toggleWidget(node, findWidgetByName(node, 'new_cond_end'))
+		}else if(widget.value == 'timestep'){
+			toggleWidget(node, findWidgetByName(node, 'average_strength'))
+			toggleWidget(node, findWidgetByName(node, 'old_cond_start'), true)
+			toggleWidget(node, findWidgetByName(node, 'old_cond_end'), true)
+			toggleWidget(node, findWidgetByName(node, 'new_cond_start'), true)
+			toggleWidget(node, findWidgetByName(node, 'new_cond_end'), true)
+		}
+	}
+
+	if (widget.name === 'preset') {
+		const normol_presets = [
+            'LIGHT - SD1.5 only (low strength)',
+            'STANDARD (medium strength)',
+            'VIT-G (medium strength)',
+            'PLUS (high strength)', 'PLUS FACE (portraits)',
+            'FULL FACE - SD1.5 only (portraits stronger)',
+        ]
+		const faceid_presets = [
+            'FACEID',
+            'FACEID PLUS - SD1.5 only',
+            'FACEID PLUS V2',
+			'FACEID PORTRAIT (style transfer)'
+        ]
+		if(normol_presets.includes(widget.value)){
+			toggleWidget(node, findWidgetByName(node, 'lora_strength'))
+			toggleWidget(node, findWidgetByName(node, 'provider'))
+			toggleWidget(node, findWidgetByName(node, 'weight_faceidv2'))
+			toggleWidget(node, findWidgetByName(node, 'use_tiled'), true)
+			let use_tiled = findWidgetByName(node, 'use_tiled')
+			if(use_tiled && use_tiled.value){
+				toggleWidget(node, findWidgetByName(node, 'sharpening'), true)
+			}else {
+				toggleWidget(node, findWidgetByName(node, 'sharpening'))
+			}
+
+		}
+		else if(faceid_presets.includes(widget.value)){
+			if(widget.value == 'FACEID PLUS V2'){
+				toggleWidget(node, findWidgetByName(node, 'weight_faceidv2'), true)
+			}else{
+				toggleWidget(node, findWidgetByName(node, 'weight_faceidv2'))
+			}
+			if(widget.value == 'FACEID PORTRAIT (style transfer)'){
+				toggleWidget(node, findWidgetByName(node, 'lora_strength'), false)
+			}
+			else{
+				toggleWidget(node, findWidgetByName(node, 'lora_strength'), true)
+			}
+			toggleWidget(node, findWidgetByName(node, 'provider'), true)
+			toggleWidget(node, findWidgetByName(node, 'use_tiled'))
+			toggleWidget(node, findWidgetByName(node, 'sharpening'))
+		}
+		updateNodeHeight(node)
+	}
+
+	if (widget.name === 'use_tiled') {
+		if(widget.value)
+			toggleWidget(node, findWidgetByName(node, 'sharpening'), true)
+		else
+			toggleWidget(node, findWidgetByName(node, 'sharpening'))
+		updateNodeHeight(node)
+	}
+
+	if (widget.name === 'num_embeds') {
+		let number_to_show = widget.value + 1
+		for (let i = 0; i < number_to_show; i++) {
+			toggleWidget(node, findWidgetByName(node, 'weight'+i), true)
+		}
+		for (let i = number_to_show; i < 6; i++) {
+			toggleWidget(node, findWidgetByName(node, 'weight'+i))
+		}
+		updateNodeHeight(node)
+	}
+
+	if (widget.name === 'guider'){
+		switch (widget.value){
+			case 'Basic':
+				toggleWidget(node, findWidgetByName(node, 'cfg'))
+				toggleWidget(node, findWidgetByName(node, 'cfg_negative'))
+				break
+			case 'CFG':
+				toggleWidget(node, findWidgetByName(node, 'cfg'),true)
+				toggleWidget(node, findWidgetByName(node, 'cfg_negative'))
+				break
+			case 'IP2P+DualCFG':
+			case 'DualCFG':
+				toggleWidget(node, findWidgetByName(node, 'cfg'),true)
+				toggleWidget(node, findWidgetByName(node, 'cfg_negative'), true)
+				break
+
+		}
+		updateNodeHeight(node)
+	}
+
+	if (widget.name === 'scheduler'){
+		if (['karrasADV','exponentialADV','polyExponential'].includes(widget.value)){
+			toggleWidget(node, findWidgetByName(node, 'sigma_max'), true)
+			toggleWidget(node, findWidgetByName(node, 'sigma_min'), true)
+			toggleWidget(node, findWidgetByName(node, 'denoise'))
+			toggleWidget(node, findWidgetByName(node, 'beta_d'))
+			toggleWidget(node, findWidgetByName(node, 'beta_min'))
+			toggleWidget(node, findWidgetByName(node, 'eps_s'))
+			if(widget.value != 'exponentialADV'){
+				toggleWidget(node, findWidgetByName(node, 'rho'), true)
+			}else{
+				toggleWidget(node, findWidgetByName(node, 'rho'))
+			}
+		}else if(widget.value == 'vp'){
+			toggleWidget(node, findWidgetByName(node, 'sigma_max'))
+			toggleWidget(node, findWidgetByName(node, 'sigma_min'))
+			toggleWidget(node, findWidgetByName(node, 'denoise'))
+			toggleWidget(node, findWidgetByName(node, 'rho'))
+			toggleWidget(node, findWidgetByName(node, 'beta_d'),true)
+			toggleWidget(node, findWidgetByName(node, 'beta_min'),true)
+			toggleWidget(node, findWidgetByName(node, 'eps_s'),true)
+		}else{
+			toggleWidget(node, findWidgetByName(node, 'denoise'),true)
+			toggleWidget(node, findWidgetByName(node, 'sigma_max'))
+			toggleWidget(node, findWidgetByName(node, 'sigma_min'))
+			toggleWidget(node, findWidgetByName(node, 'beta_d'))
+			toggleWidget(node, findWidgetByName(node, 'beta_min'))
+			toggleWidget(node, findWidgetByName(node, 'eps_s'))
+			toggleWidget(node, findWidgetByName(node, 'rho'))
 		}
 		updateNodeHeight(node)
 	}
@@ -433,9 +571,13 @@ app.registerExtension({
 			case "easy comfyLoader":
 			case "easy cascadeLoader":
 			case "easy svdLoader":
+			case "easy dynamiCrafterLoader":
 			case "easy loraStack":
 			case "easy latentNoisy":
+			case "easy preSampling":
 			case "easy preSamplingAdvanced":
+			case "easy preSamplingNoiseIn":
+			case "easy preSamplingCustom":
 			case "easy preSamplingSdTurbo":
 			case "easy preSamplingCascade":
 			case "easy preSamplingLayerDiffusion":
@@ -450,7 +592,9 @@ app.registerExtension({
 			case "easy cascadeKSampler":
 			case "easy hiresFix":
 			case "easy detailerFix":
-			case "easy imageRemoveBG":
+			case "easy imageRemBg":
+			case "easy imageColorMatch":
+			case "easy loadImageBase64":
 			case "easy XYInputs: Steps":
 			case "easy XYInputs: Sampler/Scheduler":
 			case 'easy XYInputs: Checkpoint':
@@ -460,6 +604,11 @@ app.registerExtension({
 			case "easy rangeInt":
 			case "easy rangeFloat":
 			case 'easy latentCompositeMaskedWithCond':
+			case 'easy pipeEdit':
+			case 'easy icLightApply':
+			case 'easy ipadapterApply':
+			case 'easy ipadapterApplyADV':
+			case 'easy ipadapterApplyEncoder':
 				getSetters(node)
 				break
 			case "easy wildcards":
@@ -674,6 +823,7 @@ app.registerExtension({
 					const pos = this.widgets.findIndex((w) => w.name === "spent_time");
 					if (pos !== -1 && this.widgets[pos]) {
 						const w = this.widgets[pos]
+						console.log(text)
 						w.value = text;
 					}
 				}
@@ -708,7 +858,7 @@ app.registerExtension({
 			};
 		}
 
-		if (["easy fullLoader", "easy a1111Loader", "easy comfyLoader"].includes(nodeData.name)) {
+		if (loaderNodes.includes(nodeData.name)) {
 			function populate(text, type = 'positive') {
 				if (this.widgets) {
 					const pos = this.widgets.findIndex((w) => w.name === type + "_prompt");
@@ -755,39 +905,78 @@ app.registerExtension({
 			// };
 		}
 
-		if (["easy seed", "easy latentNoisy", "easy wildcards", "easy preSampling", "easy preSamplingAdvanced", "easy preSamplingSdTurbo", "easy preSamplingCascade", "easy preSamplingDynamicCFG", "easy preSamplingLayerDiffusion", "easy fullkSampler", "easy fullCascadeKSampler"].includes(nodeData.name)) {
+		if(["easy sv3dLoader"].includes(nodeData.name)){
+			function changeSchedulerText(mode, batch_size, inputEl) {
+				console.log(mode)
+				switch (mode){
+					case 'azimuth':
+						inputEl.readOnly = true
+						inputEl.style.opacity = 0.6
+						return `0:(0.0,0.0)` + (batch_size > 1 ? `\n${batch_size-1}:(360.0,0.0)` : '')
+					case 'elevation':
+						inputEl.readOnly = true
+						inputEl.style.opacity = 0.6
+						return `0:(-90.0,0.0)` + (batch_size > 1 ? `\n${batch_size-1}:(90.0,0.0)` : '')
+					case 'custom':
+						inputEl.readOnly = false
+						inputEl.style.opacity = 1
+						return `0:(0.0,0.0)\n9:(180.0,0.0)\n20:(360.0,0.0)`
+				}
+			}
+
+
 			const onNodeCreated = nodeType.prototype.onNodeCreated;
 			nodeType.prototype.onNodeCreated = async function () {
 				onNodeCreated ? onNodeCreated.apply(this, []) : undefined;
-				const values = ["randomize", "fixed", "increment", "decrement"]
-				const seed_widget = this.widgets.find(w => w.name == 'seed_num')
-				const seed_control = this.addWidget("combo", "control_after_generate", values[0], () => {
-				}, {
-					values,
-					serialize: false
-				})
-				seed_widget.afterQueued = function (){
-					const linked = this.linkedWidgets[0];
-
-					if(linked) {
-						if (linked.value === "randomize") {
-							this.value = Math.floor(Math.random() * 1125899906842624)
-						} else if (linked.value === "increment") {
-							this.value = this.value + 1;
-						} else if (linked.value === "decrement") {
-							this.value = this.value - 1;
-						}
-					}
+				const easing_mode_widget = this.widgets.find(w => w.name == 'easing_mode')
+				const batch_size = this.widgets.find(w => w.name == 'batch_size')
+				const scheduler = this.widgets.find(w => w.name == 'scheduler')
+				setTimeout(_=>{
+					if(!scheduler.value) scheduler.value = changeSchedulerText(easing_mode_widget.value, batch_size.value, scheduler.inputEl)
+				},1)
+				easing_mode_widget.callback = value=>{
+					scheduler.value = changeSchedulerText(value, batch_size.value, scheduler.inputEl)
 				}
-				seed_widget.linkedWidgets = [seed_control]
+				batch_size.callback = value =>{
+					scheduler.value = changeSchedulerText(easing_mode_widget.value, value, scheduler.inputEl)
+				}
+			}
+		}
+
+		if (seedNodes.includes(nodeData.name)) {
+			const onNodeCreated = nodeType.prototype.onNodeCreated;
+			nodeType.prototype.onNodeCreated = async function () {
+				onNodeCreated ? onNodeCreated.apply(this, []) : undefined;
+				// const values = ["randomize", "fixed", "increment", "decrement"]
+				// const seed_widget = this.widgets.find(w => w.name == 'seed_num')
+				// const seed_control = this.addWidget("combo", "control_before_generate", values[0], () => {
+				// }, {
+				// 	values,
+				// 	serialize: false
+				// })
+				// seed_widget.linkedWidgets = [seed_control]
+				const seed_widget = this.widgets.find(w => ['seed_num','seed'].includes(w.name))
+				const seed_control = this.widgets.find(w=> ['control_before_generate','control_after_generate'].includes(w.name))
 				if(nodeData.name == 'easy seed'){
 					this.addWidget("button", "🎲 Manual Random Seed", null, _=>{
 						if(seed_control.value != 'fixed'){
 							seed_control.value = 'fixed'
 						}
 						seed_widget.value = Math.floor(Math.random() * 1125899906842624)
+						app.queuePrompt(0, 1)
 					})
 				}
+			}
+			const onAdded = nodeType.prototype.onAdded;
+			nodeType.prototype.onAdded = async function () {
+				onAdded ? onAdded.apply(this, []) : undefined;
+				const seed_widget = this.widgets.find(w => ['seed_num','seed'].includes(w.name))
+				const seed_control = this.widgets.find(w=> ['control_before_generate','control_after_generate'].includes(w.name))
+				setTimeout(_=>{
+					if(seed_control.name == 'control_before_generate' && seed_widget.value === 0) {
+						seed_widget.value = Math.floor(Math.random() * 1125899906842624)
+					}
+				},1)
 			}
 		}
 
@@ -818,7 +1007,7 @@ app.registerExtension({
 			}
 		}
 
-		if(nodeData.name == 'easy showAnything'){
+		if(['easy showAnything', 'easy showTensorShape', 'easy imageInterrogator'].includes(nodeData.name)){
 			function populate(text) {
 				if (this.widgets) {
 					const pos = this.widgets.findIndex((w) => w.name === "text");
@@ -857,13 +1046,15 @@ app.registerExtension({
 				populate.call(this, message.text);
 			};
 
-			const onConfigure = nodeType.prototype.onConfigure;
-			nodeType.prototype.onConfigure = function () {
-				onConfigure?.apply(this, arguments);
-				if (this.widgets_values?.length) {
-					populate.call(this, this.widgets_values);
-				}
-			};
+			if(!['easy imageInterrogator'].includes(nodeData.name)) {
+				const onConfigure = nodeType.prototype.onConfigure;
+				nodeType.prototype.onConfigure = function () {
+					onConfigure?.apply(this, arguments);
+					if (this.widgets_values?.length) {
+						populate.call(this, this.widgets_values);
+					}
+				};
+			}
 		}
 
 		if(nodeData.name == 'easy convertAnything'){
@@ -889,16 +1080,50 @@ app.registerExtension({
 
 			}
 		}
+
+		if (nodeData.name == 'easy promptLine') {
+			const onAdded = nodeType.prototype.onAdded;
+			nodeType.prototype.onAdded = async function () {
+				onAdded ? onAdded.apply(this, []) : undefined;
+				let prompt_widget = this.widgets.find(w => w.name == "prompt")
+				const button = this.addWidget("button", "get values from COMBO link", '', () => {
+					const output_link = this.outputs[1]?.links?.length>0 ? this.outputs[1]['links'][0] : null
+					const all_nodes = app.graph._nodes
+					const node = all_nodes.find(cate=> cate.inputs?.find(input=> input.link == output_link))
+					if(!output_link || !node){
+						toast.error($t('No COMBO link'), 3000)
+						return
+					}
+					else{
+						const input = node.inputs.find(input=> input.link == output_link)
+						const widget_name = input.widget.name
+						const widgets = node.widgets
+						const widget = widgets.find(cate=> cate.name == widget_name)
+						let values = widget?.options.values || null
+						if(values){
+							values = values.join('\n')
+							prompt_widget.value = values
+						}
+					}
+				}, {
+					serialize: false
+				})
+			}
+		}
 	}
 });
 
 
-const getSetWidgets = ['rescale_after_model', 'rescale', 'image_output',
+const getSetWidgets = ['rescale_after_model', 'rescale',
 						'lora_name', 'lora1_name', 'lora2_name', 'lora3_name', 
 						'refiner_lora1_name', 'refiner_lora2_name', 'upscale_method', 
 						'image_output', 'add_noise', 'info', 'sampler_name',
 						'ckpt_B_name', 'ckpt_C_name', 'save_model', 'refiner_ckpt_name',
-						'num_loras', 'mode', 'toggle', 'resolution', 'target_parameter', 'input_count', 'replace_count', 'downscale_mode', 'range_mode','text_combine_mode', 'input_mode','lora_count','ckpt_count']
+						'num_loras', 'mode', 'toggle', 'resolution', 'target_parameter',
+	'input_count', 'replace_count', 'downscale_mode', 'range_mode','text_combine_mode', 'input_mode',
+	'lora_count','ckpt_count', 'conditioning_mode', 'preset', 'use_tiled', 'use_batch', 'num_embeds',
+	"easing_mode", "guider", "scheduler"
+]
 
 function getSetters(node) {
 	if (node.widgets)

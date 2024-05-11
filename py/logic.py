@@ -1,7 +1,7 @@
 from typing import Iterator, List, Tuple, Dict, Any, Union, Optional
 from _decimal import Context, getcontext
 from decimal import Decimal
-import torch
+from .libs.utils import AlwaysEqualProxy, cleanGPUUsedForce
 import numpy as np
 import json
 
@@ -277,6 +277,30 @@ class imageSwitch:
         else:
             return (image_b, )
 
+class textSwitch:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "input": ("INT", {"default": 1, "min": 1, "max": 2}),
+            },
+            "optional": {
+                "text1": ("STRING", {"forceInput": True}),
+                "text2": ("STRING", {"forceInput": True}),
+            }
+        }
+
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("STRING",)
+    CATEGORY = "EasyUse/Logic/Switch"
+    FUNCTION = "switch"
+
+    def switch(self, input, text1=None, text2=None,):
+        if input == 1:
+            return (text1,)
+        else:
+            return (text2,)
+
 # ---------------------------------------------------------------运算 开始----------------------------------------------------------------------#
 
 COMPARE_FUNCTIONS = {
@@ -287,12 +311,6 @@ COMPARE_FUNCTIONS = {
     "a <= b": lambda a, b: a <= b,
     "a >= b": lambda a, b: a >= b,
 }
-class AlwaysEqualProxy(str):
-    def __eq__(self, _):
-        return True
-
-    def __ne__(self, _):
-        return False
 
 # 比较
 class Compare:
@@ -467,6 +485,36 @@ class showAnything:
 
         return {"ui": {"text": values}}
 
+class showTensorShape:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {"required": {"tensor": (AlwaysEqualProxy("*"),)}, "optional": {},
+                "hidden": {"unique_id": "UNIQUE_ID", "extra_pnginfo": "EXTRA_PNGINFO"
+               }}
+
+    RETURN_TYPES = ()
+    RETURN_NAMES = ()
+    OUTPUT_NODE = True
+    FUNCTION = "log_input"
+    CATEGORY = "EasyUse/Logic"
+
+    def log_input(self, tensor, unique_id=None, extra_pnginfo=None):
+        shapes = []
+
+        def tensorShape(tensor):
+            if isinstance(tensor, dict):
+                for k in tensor:
+                    tensorShape(tensor[k])
+            elif isinstance(tensor, list):
+                for i in range(len(tensor)):
+                    tensorShape(tensor[i])
+            elif hasattr(tensor, 'shape'):
+                shapes.append(list(tensor.shape))
+
+        tensorShape(tensor)
+
+        return {"ui": {"text": shapes}}
+
 # cleanGpuUsed
 class cleanGPUUsed:
     @classmethod
@@ -482,10 +530,51 @@ class cleanGPUUsed:
     CATEGORY = "EasyUse/Logic"
 
     def empty_cache(self, anything, unique_id=None, extra_pnginfo=None):
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-
+        cleanGPUUsedForce()
         return ()
+
+from .libs.cache import remove_cache
+class clearCacheKey:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {"required": {
+            "anything": (AlwaysEqualProxy("*"), {}),
+            "cache_key": ("STRING", {"default": "*"}),
+        }, "optional": {},
+            "hidden": {"unique_id": "UNIQUE_ID", "extra_pnginfo": "EXTRA_PNGINFO",}
+        }
+
+    RETURN_TYPES = ()
+    RETURN_NAMES = ()
+    OUTPUT_NODE = True
+    FUNCTION = "empty_cache"
+    CATEGORY = "EasyUse/Logic"
+
+    def empty_cache(self, anything, cache_name, unique_id=None, extra_pnginfo=None):
+        remove_cache(cache_name)
+        return ()
+
+class clearCacheAll:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {"required": {
+            "anything": (AlwaysEqualProxy("*"), {}),
+        }, "optional": {},
+            "hidden": {"unique_id": "UNIQUE_ID", "extra_pnginfo": "EXTRA_PNGINFO",}
+        }
+
+    RETURN_TYPES = ()
+    RETURN_NAMES = ()
+    OUTPUT_NODE = True
+    FUNCTION = "empty_cache"
+    CATEGORY = "EasyUse/Logic"
+
+    def empty_cache(self, anything, unique_id=None, extra_pnginfo=None):
+        remove_cache('*')
+        return ()
+
+
+
 
 NODE_CLASS_MAPPINGS = {
   "easy string": String,
@@ -496,12 +585,16 @@ NODE_CLASS_MAPPINGS = {
   "easy boolean": Boolean,
   "easy compare": Compare,
   "easy imageSwitch": imageSwitch,
+  "easy textSwitch": textSwitch,
   "easy if": If,
   "easy isSDXL": isSDXL,
   "easy xyAny": xyAny,
   "easy convertAnything": ConvertAnything,
   "easy showAnything": showAnything,
-  "easy cleanGpuUsed": cleanGPUUsed
+  "easy showTensorShape": showTensorShape,
+  "easy clearCacheKey": clearCacheKey,
+  "easy clearCacheAll": clearCacheAll,
+  "easy cleanGpuUsed": cleanGPUUsed,
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
   "easy string": "String",
@@ -512,10 +605,14 @@ NODE_DISPLAY_NAME_MAPPINGS = {
   "easy boolean": "Boolean",
   "easy compare": "Compare",
   "easy imageSwitch": "Image Switch",
+  "easy textSwitch": "Text Switch",
   "easy if": "If",
   "easy isSDXL": "Is SDXL",
   "easy xyAny": "XYAny",
   "easy convertAnything": "Convert Any",
   "easy showAnything": "Show Any",
+  "easy showTensorShape": "Show Tensor Shape",
+  "easy clearCacheKey": "Clear Cache Key",
+  "easy clearCacheAll": "Clear Cache All",
   "easy cleanGpuUsed": "Clean GPU Used"
 }

@@ -5,22 +5,23 @@ import numpy as np
 import comfy.model_management
 
 from comfy.model_patcher import ModelPatcher
-from enum import Enum
 from tqdm import tqdm
 from typing import Optional, Tuple
-
-class LayerMethod(Enum):
-    FG_ONLY_ATTN = "Attention Injection"
-    FG_ONLY_CONV = "Conv Injection"
-    FG_TO_BLEND = "Foreground"
-    FG_BLEND_TO_BG = "Foreground to Background"
-    BG_TO_BLEND = "Background"
-    BG_BLEND_TO_FG = "Background to Foreground"
+from ..libs.utils import install_package
+from packaging import version
 
 try:
+    install_package("diffusers", "0.27.2", True, "0.25.0")
+
     from diffusers.configuration_utils import ConfigMixin, register_to_config
     from diffusers.models.modeling_utils import ModelMixin
-    from diffusers.models.unet_2d_blocks import UNetMidBlock2D, get_down_block, get_up_block
+    from diffusers import __version__
+    if __version__:
+        if version.parse(__version__) < version.parse("0.27.0"):
+            from diffusers.models.unet_2d_blocks import UNetMidBlock2D, get_down_block, get_up_block
+        else:
+            from diffusers.models.unets.unet_2d_blocks import UNetMidBlock2D, get_down_block, get_up_block
+
     import functools
 
     def zero_module(module):
@@ -320,6 +321,7 @@ try:
 
 
     def calculate_weight_adjust_channel(func):
+        """Patches ComfyUI's LoRA weight application to accept multi-channel inputs."""
         @functools.wraps(func)
         def calculate_weight(
                 self: ModelPatcher, patches, weight: torch.Tensor, key: str
@@ -330,8 +332,9 @@ try:
                 alpha = p[0]
                 v = p[1]
 
+                # The recursion call should be handled in the main func call.
                 if isinstance(v, list):
-                    v = (func(v[1:], v[0].clone(), key),)
+                    continue
 
                 if len(v) == 1:
                     patch_type = "diff"
@@ -374,11 +377,14 @@ try:
 
         return calculate_weight
 
+
 except ImportError:
     ModelMixin = None
     ConfigMixin = None
     TransparentVAEDecoder = None
     calculate_weight_adjust_channel = None
-    print("\33[31mModule 'diffusers' not installed. Please install it via:\033[0m")
-    print("\33[31mpip install diffusers\033[0m")
+    print("\33[33mModule 'diffusers' load failed. If you don't have it installed, do it:\033[0m")
+    print("\33[33mpip install diffusers\033[0m")
+
+
 
